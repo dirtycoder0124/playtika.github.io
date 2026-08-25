@@ -1,5 +1,5 @@
 =======================================================
-                      WEB:1
+                      WEB PROMPT
 ======================================================
 
 burp_logs: /home/hunter/TARGET.burp |
@@ -51,11 +51,11 @@ Also list: endpoints/params checked with no valid finding (coverage), Allow: hea
 Skip Medium/Low unless chained into High. No destructive/exploit payloads — detection + PoC only.
 
 
-===================================
-===================================
+=======================================================
+                  WildCard XSS PROMPT
+=======================================================
 
 
-WildCard XSS
 
 You are conducting an authorized XSS assessment against *.storia.ro 
 (confirmed in-scope for [bug bounty program / pentest engagement]).
@@ -127,13 +127,10 @@ PHASE 7 — VALIDATION & REPORTING
 
 
 
-==================================================================================
-==================================================================================
-==================================================================================
 
-Android Prompt:-
-
-
+==================================================================================
+                              Android PrompT
+==================================================================================
 
 name: android-dirty
 description: Analyze Android APKs and decompiled Android source ONLY for immediately reproducible, confirmed bug-bounty vulnerabilities. Prioritize embedded Intent/trampoline, WebView, deep link, authentication/biometric bypass, IPC/content provider, file/URI, and usable secret findings. Require a real exploit and reproducible ADB or minimal Kotlin PoC. Do not produce generic audits, theoretical findings, remediation, informational findings, or explanations.
